@@ -19,7 +19,7 @@ Utilise le skill `configurer-usine` (`.claude/skills/configurer-usine/SKILL.md`)
 | `.env` | Secrets et identifiants (Slack, clés de modèles, Notion) | La personne, ou `setup.mjs` |
 | `config/factory.json` | Workers et moteurs, formats, pack, planning, JEV, termes interdits | `setup.mjs` pour les workers et moteurs. Le reste à la main |
 | `docker-compose.yml` | Généré par `setup.mjs` selon le nombre de workers | Ne pas modifier à la main : relancer l'assistant |
-| `maison/` | Charte éditoriale et exemples | La personne, ou `/contenu charte` dans Slack |
+| `maison/` | Charte éditoriale et exemples. Non suivi par Git, créé une fois depuis `maison.example/` | La personne, ou `/contenu charte` dans Slack. Ne jamais l'écraser |
 
 ## Règles pour modifier le code
 

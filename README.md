@@ -67,7 +67,7 @@ setup.answers.example.json   modèle de réponses pour une installation sans que
 .env.example                 la liste des secrets (copiée en .env, jamais commitée)
 docker-compose.yml           généré par l'assistant selon le nombre de workers
 config/factory.json          workers, moteurs, formats, pack, planning, JEV
-maison/                      charte éditoriale et exemples
+maison.example/              modèle de charte et d'exemples, copié une fois dans maison/ (à vous, jamais écrasé)
 slack-manifest.yml           pour créer l'app Slack en un clic
 orchestrator/                Slack, file d'attente SQLite, répartition, contrôles, Notion
 worker/                      rédacteur : Claude Code ou toute API compatible OpenAI

@@ -13,7 +13,7 @@
 //
 // Sans Node sur le serveur, install.sh le lance dans un conteneur.
 import { createInterface } from "node:readline"
-import { existsSync, readFileSync, writeFileSync, copyFileSync, chmodSync } from "node:fs"
+import { existsSync, readFileSync, writeFileSync, copyFileSync, chmodSync, cpSync } from "node:fs"
 import { randomBytes } from "node:crypto"
 import { spawnSync } from "node:child_process"
 import { fileURLToPath } from "node:url"
@@ -384,6 +384,13 @@ async function main() {
   }
 
   console.log("\n=== Configuration de l'usine à contenu ===")
+  // La charte et les exemples appartiennent à la personne : maison/ n'est pas
+  // suivi par Git. Il naît une seule fois du modèle, puis n'est plus jamais
+  // écrasé, ni par l'assistant ni par un git pull.
+  if (!existsSync(path("maison/CLAUDE.md"))) {
+    cpSync(path("maison.example/"), path("maison/"), { recursive: true })
+    console.log("maison/ créé à partir de maison.example/ : adaptez-y votre charte, ou utilisez /contenu charte dans Slack.")
+  }
   const env = readEnv().values
 
   // 1. Les réponses : fichier (agent) ou questions.
