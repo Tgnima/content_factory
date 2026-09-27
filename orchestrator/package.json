@@ -1,0 +1,15 @@
+{
+  "name": "usine-contenu-orchestrateur",
+  "private": true,
+  "type": "module",
+  "description": "Reçoit les demandes Slack, répartit le travail entre les rédacteurs, gère la relecture",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "start": "node src/index.mjs"
+  },
+  "dependencies": {
+    "@slack/bolt": "^4.4.0"
+  }
+}

@@ -1,0 +1,6 @@
+.env
+node_modules/
+data/
+.setup-next
+setup.answers.json
+*.bak

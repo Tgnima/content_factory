@@ -1,0 +1,28 @@
+# À coller dans https://api.slack.com/apps > Create New App > From a manifest.
+display_information:
+  name: Usine à contenu
+  description: Rédige articles et posts à la demande, avec relecture dans le fil.
+  background_color: "#0f6e56"
+features:
+  bot_user:
+    display_name: Content_Factory
+    always_online: true
+  slash_commands:
+    - command: /contenu
+      description: Demander un contenu (article, post LinkedIn…)
+      usage_hint: "[blog|social] votre demande"
+      should_escape: false
+oauth_config:
+  scopes:
+    bot:
+      - commands
+      - chat:write
+      - chat:write.public
+      - reactions:write
+      - files:write
+settings:
+  interactivity:
+    is_enabled: true
+  org_deploy_enabled: false
+  socket_mode_enabled: true
+  token_rotation_enabled: false

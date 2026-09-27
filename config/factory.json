@@ -1,0 +1,138 @@
+{
+  "workers": [
+    {
+      "id": "redacteur-1",
+      "url": "http://redacteur-1:8080",
+      "types": [
+        "blog",
+        "social"
+      ],
+      "engine": "claude"
+    },
+    {
+      "id": "redacteur-2",
+      "url": "http://redacteur-2:8080",
+      "types": [
+        "blog",
+        "social"
+      ],
+      "engine": "claude"
+    },
+    {
+      "id": "illustrateur-1",
+      "url": "http://illustrateur-1:8080",
+      "types": [
+        "visuel"
+      ],
+      "engine": "images-codex"
+    }
+  ],
+  "engines": {
+    "claude": {
+      "type": "claude-code",
+      "model": "claude-sonnet-5"
+    },
+    "mistral": {
+      "type": "api",
+      "baseUrl": "https://ai-gateway.vercel.sh/v1",
+      "model": "mistral/mistral-large-3",
+      "apiKeyEnv": "AI_GATEWAY_API_KEY"
+    },
+    "gemini": {
+      "type": "api",
+      "baseUrl": "https://ai-gateway.vercel.sh/v1",
+      "model": "google/gemini-3.5-flash",
+      "apiKeyEnv": "AI_GATEWAY_API_KEY"
+    },
+    "deepseek": {
+      "type": "api",
+      "baseUrl": "https://ai-gateway.vercel.sh/v1",
+      "model": "deepseek/deepseek-v4-flash",
+      "apiKeyEnv": "AI_GATEWAY_API_KEY"
+    },
+    "mistral-direct": {
+      "type": "api",
+      "baseUrl": "https://api.mistral.ai/v1",
+      "model": "mistral-large-latest",
+      "apiKeyEnv": "MISTRAL_API_KEY"
+    },
+    "ollama-local": {
+      "type": "api",
+      "baseUrl": "http://host.docker.internal:11434/v1",
+      "model": "llama3.1"
+    },
+    "images-codex": {
+      "type": "codex"
+    },
+    "images-openai": {
+      "type": "openai-responses",
+      "model": "gpt-6-astra",
+      "imageModel": "gpt-image-2.5-flare",
+      "apiKeyEnv": "OPENAI_API_KEY"
+    },
+    "images-gemini": {
+      "type": "chat-image",
+      "baseUrl": "https://ai-gateway.vercel.sh/v1",
+      "model": "google/gemini-3.1-flash-image",
+      "apiKeyEnv": "AI_GATEWAY_API_KEY"
+    },
+    "images-flux": {
+      "type": "images-api",
+      "baseUrl": "https://ai-gateway.vercel.sh/v1",
+      "model": "bfl/flux-2-pro",
+      "apiKeyEnv": "AI_GATEWAY_API_KEY"
+    },
+    "images-recraft": {
+      "type": "images-api",
+      "baseUrl": "https://ai-gateway.vercel.sh/v1",
+      "model": "recraft/recraft-v4.1",
+      "apiKeyEnv": "AI_GATEWAY_API_KEY"
+    }
+  },
+  "defaultType": "blog",
+  "contentTypes": {
+    "blog": {
+      "label": "Article de blog",
+      "minWords": 500,
+      "maxWords": 1200,
+      "instructions": "Rédige un article de blog en Markdown : un titre H1, une introduction courte, 3 à 5 sections H2, une conclusion avec un appel à l'action."
+    },
+    "social": {
+      "label": "Post LinkedIn",
+      "minWords": 60,
+      "maxWords": 250,
+      "instructions": "Rédige un post LinkedIn : une première ligne accrocheuse, des paragraphes courts, 3 hashtags maximum à la fin. Pas de titre Markdown."
+    },
+    "visuel": {
+      "label": "Visuel",
+      "kind": "image",
+      "instructions": "Crée une image d'illustration professionnelle, au format paysage, adaptée à un article de blog ou à un post LinkedIn."
+    }
+  },
+  "pack": {
+    "texts": [
+      "blog",
+      "social"
+    ],
+    "visualFrom": "blog",
+    "visualExcerptChars": 800
+  },
+  "planning": {
+    "pollMinutes": 5
+  },
+  "jev": {
+    "enabled": true,
+    "tries": 2,
+    "briefThreshold": 0.3,
+    "charteThreshold": 0.4,
+    "inventedThreshold": 0.6
+  },
+  "forbiddenTerms": [
+    "révolutionnaire",
+    "leader du marché",
+    "n°1"
+  ],
+  "maxAutoRetries": 1,
+  "jobTimeoutMinutes": 10,
+  "slackBotName": "Content_Factory"
+}

@@ -1,0 +1,13 @@
+{
+  "botName": "Content_Factory",
+  "channelId": "C0123456789",
+  "allowedUserIds": "",
+  "writers": 2,
+  "writerEngines": ["claude", "mistral"],
+  "claudeAuth": "abonnement",
+  "claudeModel": "claude-sonnet-5",
+  "illustrator": "images-flux",
+  "jev": false,
+  "notion": true,
+  "notionPageTitle": "Usine à contenu"
+}
