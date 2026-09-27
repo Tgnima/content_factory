@@ -25,6 +25,9 @@ run_node() {
 }
 
 say "Récupération du code"
+# Un dossier raccordé à GitHub après coup (git init + remote) n'a pas de branche
+# suivie : on suit origin/main. Après un git clone, c'est déjà le cas.
+git rev-parse --abbrev-ref '@{u}' >/dev/null 2>&1 || { git fetch -q origin && git branch -q --set-upstream-to=origin/main; }
 before="$(git rev-parse HEAD)"
 git pull --ff-only
 after="$(git rev-parse HEAD)"
