@@ -22,8 +22,8 @@ Il faut un serveur Linux (Ubuntu ou Debian), avec au moins 4 Go de RAM pour 2 r�
 **2. Récupérer le projet et lancer l'installation :**
 
 ```bash
-git clone <adresse du dépôt> usine-contenu
-cd usine-contenu
+git clone https://github.com/Tgnima/content_factory.git
+cd content_factory
 bash install.sh
 ```
 

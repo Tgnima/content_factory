@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Installation de l'usine à contenu sur un serveur Linux (Ubuntu/Debian).
 #
-#   git clone <dépôt> usine-contenu && cd usine-contenu
+#   git clone https://github.com/Tgnima/content_factory.git && cd content_factory
 #   bash install.sh                                questions interactives
 #   bash install.sh --answers reponses.json --yes  réponses préparées (par exemple par Claude Code)
 #
