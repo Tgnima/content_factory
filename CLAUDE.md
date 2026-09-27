@@ -17,9 +17,11 @@ Utilise le skill `configurer-usine` (`.claude/skills/configurer-usine/SKILL.md`)
 | Fichier | Contenu | Qui le modifie |
 |---|---|---|
 | `.env` | Secrets et identifiants (Slack, clés de modèles, Notion) | La personne, ou `setup.mjs` |
-| `config/factory.json` | Workers et moteurs, formats, pack, planning, JEV, termes interdits | `setup.mjs` pour les workers et moteurs. Le reste à la main |
-| `docker-compose.yml` | Généré par `setup.mjs` selon le nombre de workers | Ne pas modifier à la main : relancer l'assistant |
+| `config/factory.json` | Workers et moteurs, formats, pack, planning, JEV, termes interdits. Non suivi par Git, créé depuis `config/factory.example.json` | `setup.mjs` pour les workers et moteurs. Le reste à la main |
+| `docker-compose.yml` | Généré par `setup.mjs` selon les workers. Non suivi par Git | Ne pas modifier à la main : relancer l'assistant |
 | `maison/` | Charte éditoriale et exemples. Non suivi par Git, créé une fois depuis `maison.example/` | La personne, ou `/contenu charte` dans Slack. Ne jamais l'écraser |
+
+**Mettre à jour une installation** : `bash update.sh` (git pull, puis `setup.mjs --upgrade` qui ajoute les nouveaux réglages sans rien écraser, puis reconstruction). Un nouveau réglage du code s'ajoute dans `config/factory.example.json` : `--upgrade` le reportera chez chacun.
 
 ## Règles pour modifier le code
 

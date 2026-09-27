@@ -5,3 +5,6 @@ data/
 setup.answers.json
 *.bak
 maison/
+config/factory.json
+docker-compose.yml
+*.log

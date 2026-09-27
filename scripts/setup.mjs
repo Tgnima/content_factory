@@ -384,13 +384,9 @@ async function main() {
   }
 
   console.log("\n=== Configuration de l'usine à contenu ===")
-  // La charte et les exemples appartiennent à la personne : maison/ n'est pas
-  // suivi par Git. Il naît une seule fois du modèle, puis n'est plus jamais
-  // écrasé, ni par l'assistant ni par un git pull.
-  if (!existsSync(path("maison/CLAUDE.md"))) {
-    cpSync(path("maison.example/"), path("maison/"), { recursive: true })
-    console.log("maison/ créé à partir de maison.example/ : adaptez-y votre charte, ou utilisez /contenu charte dans Slack.")
-  }
+  ensureLocalFiles()
+
+  if (flag("--upgrade")) return upgrade()
   const env = readEnv().values
 
   // 1. Les réponses : fichier (agent) ou questions.
@@ -494,6 +490,60 @@ async function main() {
   if (next.includes("claude-token")) console.log("  Il reste à générer le token d'abonnement Claude (install.sh le fait avec vous).")
   if (next.includes("codex-login")) console.log("  Il reste à connecter l'illustrateur à ChatGPT (install.sh le fait avec vous).")
   if (failures) process.exitCode = 2
+}
+
+// Les fichiers propres à chaque installation ne sont pas suivis par Git : ils
+// naissent une fois de leur modèle, puis ne sont plus jamais écrasés, ni par
+// l'assistant ni par un git pull.
+//   maison/               la charte et les exemples   <- maison.example/
+//   config/factory.json   workers, moteurs, réglages  <- config/factory.example.json
+//   docker-compose.yml    généré par renderCompose()
+function ensureLocalFiles() {
+  if (!existsSync(path("maison/CLAUDE.md"))) {
+    cpSync(path("maison.example/"), path("maison/"), { recursive: true })
+    console.log("maison/ créé à partir de maison.example/ : adaptez-y votre charte, ou utilisez /contenu charte dans Slack.")
+  }
+  if (!existsSync(path("config/factory.json"))) {
+    copyFileSync(path("config/factory.example.json"), path("config/factory.json"))
+    console.log("config/factory.json créé à partir de config/factory.example.json.")
+  }
+}
+
+// --upgrade, après un git pull (update.sh) : les réglages ajoutés au modèle
+// depuis l'installation rejoignent config/factory.json, sans rien changer à
+// ceux qui existent déjà. docker-compose.yml est régénéré avec les workers
+// actuels, pour suivre les évolutions du modèle de compose.
+function upgrade() {
+  const example = JSON.parse(readFileSync(path("config/factory.example.json"), "utf8"))
+  const current = JSON.parse(readFileSync(path("config/factory.json"), "utf8"))
+  const added = []
+  for (const [key, value] of Object.entries(example)) {
+    if (current[key] === undefined) {
+      current[key] = value
+      added.push(key)
+    } else if (["engines", "contentTypes"].includes(key)) {
+      for (const [name, entry] of Object.entries(value)) {
+        if (current[key][name] === undefined) {
+          current[key][name] = entry
+          added.push(`${key}.${name}`)
+        }
+      }
+    }
+  }
+  writeFileSync(path("config/factory.json"), `${JSON.stringify(current, null, 2)}\n`)
+
+  const writers = current.workers.filter((w) => !w.types.some((t) => current.contentTypes[t]?.kind === "image")).length
+  const illustrator = current.workers.some((w) => w.types.some((t) => current.contentTypes[t]?.kind === "image"))
+  writeFileSync(path("docker-compose.yml"), renderCompose({ writers, illustrator }))
+
+  // Une variable nouvelle dans .env.example est ajoutée vide à .env.
+  const example_env = readFileSync(path(".env.example"), "utf8").split(/\r?\n/).map((l) => /^([A-Z_]+)=/.exec(l)?.[1]).filter(Boolean)
+  const missing = example_env.filter((k) => readEnv().values[k] === undefined)
+  if (missing.length) writeEnv(Object.fromEntries(missing.map((k) => [k, ""])))
+
+  console.log(`Réglages ajoutés : ${added.length ? added.join(", ") : "aucun"}`)
+  if (missing.length) console.log(`Nouvelles variables dans .env (vides) : ${missing.join(", ")}`)
+  console.log(`docker-compose.yml régénéré : ${writers} rédacteur(s)${illustrator ? ", 1 illustrateur" : ""}.`)
 }
 
 const defaultsOf = () => Object.fromEntries(QUESTIONS.map((q) => [q.id, q.default]))

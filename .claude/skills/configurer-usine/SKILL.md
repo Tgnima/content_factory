@@ -96,6 +96,10 @@ Les journaux doivent afficher `redacteur-N (…) : prêt` pour chaque worker, pu
 - `/invite @<nom du bot>` dans le canal ;
 - `/contenu social <un sujet précis>`.
 
+## Mettre à jour le code
+
+`bash update.sh` sur le serveur. Il ne touche ni à `.env`, ni à `config/factory.json`, ni à `maison/`. Il signale les nouvelles variables ajoutées vides dans `.env` : si l'une d'elles est nécessaire, explique à la personne où trouver la valeur.
+
 ## Changer un réglage plus tard
 
 Relance l'entretien, seulement pour ce qui change, puis `bash install.sh --answers setup.answers.json --yes`. Pour un simple changement de modèle, il suffit de modifier `config/factory.json` (`engines` et `workers[].engine`), puis de lancer `docker compose restart orchestrateur`. Aucune reconstruction n'est nécessaire.

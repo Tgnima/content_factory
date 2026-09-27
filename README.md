@@ -41,6 +41,14 @@ Pour chaque clé nécessaire, il indique où la trouver, la demande sans l'affic
 
 Ouvrez le projet dans Claude Code et demandez-lui de « configurer l'usine ». Le skill `configurer-usine` lui fait poser les mêmes questions, une par une. Vous collez vos clés vous-même dans `.env`, et elles ne passent jamais par la conversation. L'agent lance ensuite `bash install.sh --answers setup.answers.json --yes`. Voir `CLAUDE.md` et `AGENTS.md`.
 
+### Mettre à jour
+
+```bash
+bash update.sh
+```
+
+Le script récupère la dernière version du code sur GitHub et ajoute à votre configuration les réglages apparus depuis votre installation. Il reconstruit ensuite les images, avec les dernières versions de Claude Code et Codex, et redémarre l'usine. Vos fichiers personnels ne sont jamais touchés : `.env`, `config/factory.json`, `maison/` et les données.
+
 ### Changer un réglage plus tard
 
 - **Tout réglage** : relancez `bash install.sh`. L'assistant reprend les clés déjà présentes.
@@ -65,8 +73,9 @@ install.sh                   installation et reconfiguration (point d'entrée un
 scripts/setup.mjs            l'assistant : questions, tests des clés, écriture des fichiers
 setup.answers.example.json   modèle de réponses pour une installation sans questions
 .env.example                 la liste des secrets (copiée en .env, jamais commitée)
-docker-compose.yml           généré par l'assistant selon le nombre de workers
-config/factory.json          workers, moteurs, formats, pack, planning, JEV
+update.sh                    mise à jour depuis GitHub, sans toucher à vos réglages
+config/factory.example.json  modèle des réglages (copié une fois en config/factory.json, à vous)
+docker-compose.yml           généré par l'assistant selon les workers (non suivi par Git)
 maison.example/              modèle de charte et d'exemples, copié une fois dans maison/ (à vous, jamais écrasé)
 slack-manifest.yml           pour créer l'app Slack en un clic
 orchestrator/                Slack, file d'attente SQLite, répartition, contrôles, Notion
