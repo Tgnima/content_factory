@@ -166,3 +166,7 @@ absorbent les pics de mémoire.
 - Pas de visuels. Il faudrait une API d'images externe.
 - Au-delà de ~11 500 caractères, le brouillon est tronqué dans Slack. Le fichier complet est joint à la validation.
 - Pour aller plus loin : publication CMS ou Notion, génération de visuels, plus de rédacteurs sur un VPS plus gros (il suffit d'ajouter des lignes dans `config/factory.json` et `docker-compose.yml`).
+
+## Licence
+
+MIT, voir `LICENSE`.
