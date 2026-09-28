@@ -116,6 +116,48 @@ docker compose exec orchestrateur cp /app/data/charte-historique/<fichier> /app/
 Les rédacteurs lisent `maison/` en lecture seule. Seul l'orchestrateur peut
 l'écrire.
 
+## Se brancher sur vos bases existantes (plug and play)
+
+L'usine ne vous impose pas ses bases : elle **se branche sur les vôtres**, avec vos colonnes et vos valeurs.
+
+```bash
+node scripts/notion-connect.mjs
+```
+
+1. L'assistant liste les bases Notion partagées avec l'intégration, avec leurs colonnes.
+2. Vous indiquez votre **calendrier éditorial**, et les bases qui contiennent votre **contexte** : posts publiés, fiches produits, charte, personas…
+3. Pour chacune, il **propose la correspondance**, par exemple « Canal » → format, « En rédaction » → en cours, « Posts publiés » → références (seulement ceux au statut Publié).
+4. Vous validez, et c'est enregistré dans `config/factory.json` (`notion.planning` et `context.sources`).
+
+Un format que l'usine ne produit pas, par exemple une newsletter, reste dans votre calendrier sans être touché. Les bases « Planning éditorial » et « Bibliothèque de marque » de l'usine ne sont créées que si vous n'avez pas les vôtres. Un agent peut faire le branchement avec `--json`, qui décrit les bases et les correspondances proposées, puis `--apply fichier.json`.
+
+## Le contexte de l'entreprise
+
+C'est ce qui rend les contenus « maison » plutôt que génériques. Chaque élément a un type :
+
+| Type | Exemples |
+|---|---|
+| Référence | Posts et articles qui ont marché, avec « pourquoi ça marche » |
+| Fait vérifié | Offres, prix, certifications, chiffres, clients citables (les seuls que les rédacteurs peuvent citer) |
+| Code de marque | Vocabulaire, accroches, appels à l'action, hashtags |
+| Cible | Personas, leurs problèmes, leurs mots |
+| Identité visuelle | Palette, style d'image (pour l'illustrateur) |
+| À éviter | Sujets, mots, concurrents, erreurs passées |
+
+Le contexte vient de **sources branchées** (`context.sources`) : vos bases Notion, la « Bibliothèque de marque » et les fichiers de `maison/exemples/`. L'usine les synchronise toutes les 15 minutes. Pour chaque demande, elle envoie au rédacteur :
+- **toujours** les codes et les interdits ;
+- les faits, la cible et les références **les plus proches du sujet**, trouvés par embeddings via la clé Vercel. Un élément hors sujet n'est pas envoyé, même s'il reste de la place.
+
+Sous chaque brouillon, une ligne indique ce qui a servi, par exemple « :books: 2 réf. · 3 faits · 1 cible · 1 codes ».
+
+Dans Slack :
+- `/contenu contexte` ajoute un élément ;
+- le bouton **⭐ Ajouter aux références**, sous un contenu validé, fait de lui un modèle pour les suivants ;
+- `/contenu contexte liste` affiche l'état du contexte ;
+- `/contenu contexte sync` force une synchronisation.
+
+Pour modifier ou retirer un élément, faites-le directement dans sa source, dans Notion ou dans les fichiers.
+
 ## Choisir les modèles (plusieurs fournisseurs)
 
 Chaque worker désigne un **moteur** dans `config/factory.json` (`"engine": "…"`). Les moteurs sont décrits dans la section `engines`, sans aucun secret : seulement le nom de la variable de `.env` qui porte la clé.

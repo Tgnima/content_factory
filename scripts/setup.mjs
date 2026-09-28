@@ -78,7 +78,8 @@ const QUESTIONS = [
   { id: "illustrator", question: "Moteur des visuels", choices: IMAGE_ENGINES, default: "images-codex" },
   { id: "jev", question: "Activer JEV, le contrôleur bon marché de la clarté des demandes et de la charte (clé Vercel AI Gateway) ?", default: false, type: "boolean" },
   { id: "notion", question: "Activer le planning éditorial et la publication dans Notion ?", default: false, type: "boolean" },
-  { id: "notionPageTitle", question: "Titre de la page Notion connectée à l'intégration, où créer la base", default: "Usine à contenu", when: (a) => a.notion },
+  { id: "notionConnect", question: "Brancher l'usine sur vos bases Notion EXISTANTES (calendrier éditorial, posts publiés, fiches produits…) ? Sinon, elle crée les siennes", default: false, type: "boolean", when: (a) => a.notion },
+  { id: "notionPageTitle", question: "Titre de la page Notion connectée à l'intégration, où créer les bases de l'usine qui manquent", default: "Usine à contenu", when: (a) => a.notion },
 ]
 
 // --- .env -----------------------------------------------------------------------
@@ -261,6 +262,7 @@ services:
       # Notion : planning éditorial et publication (facultatif).
       NOTION_TOKEN: \${NOTION_TOKEN:-}
       NOTION_DATABASE_ID: \${NOTION_DATABASE_ID:-}
+      NOTION_LIBRARY_ID: \${NOTION_LIBRARY_ID:-}
       PLANNING_CHANNEL_ID: \${PLANNING_CHANNEL_ID:-}
     volumes:
       - ./config:/app/config:ro
@@ -475,10 +477,22 @@ async function main() {
   writeFileSync(path("docker-compose.yml"), renderCompose({ writers: answers.writers, illustrator: answers.illustrator !== "aucun" }))
   console.log("\nÉcrits : .env, config/factory.json, docker-compose.yml")
 
-  // 5. La base Notion, si demandée et pas encore créée.
-  if (answers.notion && updates.NOTION_TOKEN && !readEnv().values.NOTION_DATABASE_ID) {
-    console.log("\n--- Création de la base Notion « Planning éditorial » ---")
-    spawnSync(process.execPath, [fileURLToPath(new URL("notion-setup.mjs", import.meta.url)), "--yes"], { stdio: "inherit", env: { ...process.env, NOTION_PAGE_TITLE: answers.notionPageTitle } })
+  // 5. Notion : d'abord le branchement sur les bases existantes, puis la
+  // création des bases de l'usine qui manquent encore.
+  if (answers.notion && updates.NOTION_TOKEN) {
+    const script = (name) => fileURLToPath(new URL(name, import.meta.url))
+    if (answers.notionConnect) {
+      if (answersFile) {
+        console.log("\nBranchement Notion : lancez `node scripts/notion-connect.mjs --json`, puis `--apply` avec la correspondance choisie (voir le skill configurer-usine).")
+      } else {
+        console.log("\n--- Branchement sur vos bases Notion ---")
+        rl?.close()
+        rl = null
+        spawnSync(process.execPath, [script("notion-connect.mjs")], { stdio: "inherit" })
+      }
+    }
+    console.log("\n--- Bases Notion de l'usine ---")
+    spawnSync(process.execPath, [script("notion-setup.mjs"), "--yes"], { stdio: "inherit", env: { ...process.env, NOTION_PAGE_TITLE: answers.notionPageTitle } })
   }
 
   // 6. La suite, pour install.sh ou pour la personne.

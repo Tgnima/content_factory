@@ -21,6 +21,8 @@ Utilise le skill `configurer-usine` (`.claude/skills/configurer-usine/SKILL.md`)
 | `docker-compose.yml` | Généré par `setup.mjs` selon les workers. Non suivi par Git | Ne pas modifier à la main : relancer l'assistant |
 | `maison/` | Charte éditoriale et exemples. Non suivi par Git, créé une fois depuis `maison.example/` | La personne, ou `/contenu charte` dans Slack. Ne jamais l'écraser |
 
+**Plug and play** : l'usine se branche sur les bases Notion existantes de l'entreprise, au lieu d'imposer les siennes. `node scripts/notion-connect.mjs --json` décrit les bases visibles et propose les correspondances. Montre-les à la personne, ajuste avec elle, puis écris-les avec `--apply`. Le contexte de l'entreprise (références, faits vérifiés, codes, cibles, identité visuelle, interdits) est lu depuis `context.sources`, et le code ne suppose aucun nom de colonne (`orchestrator/src/notionClient.mjs`).
+
 **Mettre à jour une installation** : `bash update.sh` (git pull, puis `setup.mjs --upgrade` qui ajoute les nouveaux réglages sans rien écraser, puis reconstruction). Un nouveau réglage du code s'ajoute dans `config/factory.example.json` : `--upgrade` le reportera chez chacun.
 
 ## Règles pour modifier le code

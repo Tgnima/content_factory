@@ -10,12 +10,15 @@ import { addPlanningItem, notionEnabled, publish as publishToNotion } from "./no
 import { startPlanner } from "./planner.mjs"
 import { checkHealth } from "./workerClient.mjs"
 import { charteModal, saveCharte } from "./charte.mjs"
-import { HELP_TEXT, correctionModal, draftBlocks, postEphemeral, postInThread, setStatus } from "./slack.mjs"
+import { TYPES, addToLibrary, initLibrary, librarySummary, startLibrarySync, syncLibrary, writableSource } from "./library.mjs"
+import { HELP_TEXT, contextModal, correctionModal, draftBlocks, postEphemeral, postInThread, setStatus } from "./slack.mjs"
 
 const { App, LogLevel } = bolt
 
 const config = loadConfig()
 const db = openDb(join(config.dataDir, "usine.db"))
+initLibrary(db)
+const canAddReference = () => Boolean(config.notionToken && writableSource(config))
 const isImageType = (type) => config.contentTypes[type]?.kind === "image"
 const app = new App({ token: config.slackBotToken, appToken: config.slackAppToken, socketMode: true, logLevel: LogLevel.INFO })
 
@@ -31,6 +34,32 @@ app.command("/contenu", async ({ command, ack, client }) => {
     await ack()
     await client.views.open({ trigger_id: command.trigger_id, view: charteModal(config, command.channel_id) })
     return
+  }
+
+  // /contenu contexte [liste|sync] : le contexte de l'entreprise.
+  const ctxMatch = /^contexte(?:\s+(liste|sync))?$/i.exec(text)
+  if (ctxMatch) {
+    const where = { channel: command.channel_id, user: command.user_id }
+    const sub = ctxMatch[1]?.toLowerCase()
+    if (!sub) {
+      if (!canAddReference()) return ack({ response_type: "ephemeral", text: "Aucune source de contexte Notion accessible en écriture n'est branchée (context.sources dans config/factory.json)." })
+      await ack()
+      await client.views.open({ trigger_id: command.trigger_id, view: contextModal(TYPES, Object.keys(config.contentTypes), command.channel_id) })
+      return
+    }
+    await ack()
+    if (sub === "sync") {
+      const r = await syncLibrary({ config, db }).catch((e) => ({ error: e.message }))
+      const failed = r.failed?.length ? `. Sources en erreur : ${r.failed.join(", ")}` : "."
+      return postEphemeral(client, where, r.error ? `Synchronisation impossible : ${r.error}` : `:books: Contexte synchronisé : ${r.total} élément(s) (+${r.added} ajoutés, ${r.updated} modifiés, ${r.removed} retirés)${failed}`)
+    }
+    const summary = librarySummary({ config, db })
+    const vectors = summary.total ? `, dont ${summary.withVector} avec recherche par sens` : ""
+    return postEphemeral(client, where, [
+      `:books: *Contexte de l'entreprise* : ${summary.total} élément(s)${vectors}`,
+      summary.text,
+      "Modifier ou retirer un élément : directement dans sa source (Notion ou fichiers). Ajouter : `/contenu contexte` ou le bouton :star: sous un contenu validé.",
+    ].join("\n"))
   }
 
   // /contenu planifier AAAA-MM-JJ [format] <sujet> : ajoute un sujet au planning Notion.
@@ -94,7 +123,7 @@ app.action("valider", async ({ ack, body, client }) => {
     channel: request.channel_id,
     ts: request.draft_msg_ts,
     text: `Contenu #${request.id} validé`,
-    blocks: draftBlocks(request, { footer: `:white_check_mark: Validé par <@${body.user.id}>`, buttons: false, isImage, publishButton: !isImage && notionEnabled(config) }),
+    blocks: draftBlocks(request, { footer: `:white_check_mark: Validé par <@${body.user.id}>`, buttons: false, isImage, publishButton: !isImage && notionEnabled(config), referenceButton: !isImage && canAddReference() }),
   })
 
   if (isImage) {
@@ -125,13 +154,54 @@ app.action("publier", async ({ ack, body, client }) => {
       channel: request.channel_id,
       ts: request.draft_msg_ts,
       text: `Contenu #${request.id} publié sur Notion`,
-      blocks: draftBlocks(request, { footer: `:outbox_tray: Publié sur Notion par <@${body.user.id}> · <${url}|Ouvrir la page>`, buttons: false }),
+      blocks: draftBlocks(request, { footer: `:outbox_tray: Publié sur Notion par <@${body.user.id}> · <${url}|Ouvrir la page>`, buttons: false, referenceButton: canAddReference() && !getRequest(db, request.id).library_url }),
     })
     await setStatus(client, request, "published")
   } catch (error) {
     updateRequest(db, request.id, { status: "approved" })
     console.error(`Publication #${request.id} :`, error)
     await postEphemeral(client, where, `La publication sur Notion a échoué : ${error.message}`)
+  }
+})
+
+// Bouton "Ajouter aux références" : le contenu validé rejoint le contexte de
+// l'entreprise, et servira de modèle aux prochains contenus proches.
+app.action("reference", async ({ ack, body, client }) => {
+  await ack()
+  const request = getRequest(db, Number(body.actions[0].value))
+  const where = { channel: body.channel.id, user: body.user.id, threadTs: request?.thread_ts }
+  if (!isAllowedUser(config, body.user.id)) return postEphemeral(client, where, "Vous n'êtes pas autorisé à modifier le contexte.")
+  if (!request?.draft || !["approved", "published"].includes(request.status)) return postEphemeral(client, where, "Seul un contenu validé peut devenir une référence.")
+  if (request.library_url) return postEphemeral(client, where, `Déjà dans les références : <${request.library_url}|voir dans Notion>.`)
+  try {
+    const title = /^#\s+(.+)$/m.exec(request.draft)?.[1] ?? request.brief.slice(0, 120)
+    const url = await addToLibrary({ config, db }, { type: "Référence", formats: [request.type], title, body: request.draft, why: `Contenu validé dans l'usine (demande #${request.id}).` })
+    updateRequest(db, request.id, { library_url: url })
+    await postInThread(client, request, `:star: <@${body.user.id}> a ajouté ce contenu aux références : <${url}|voir dans Notion>. Complétez « Pourquoi ça marche » quand vous aurez ses résultats.`)
+  } catch (error) {
+    await postEphemeral(client, where, `Impossible d'ajouter aux références : ${error.message}`)
+  }
+})
+
+// Envoi de la fenêtre /contenu contexte.
+app.view("contexte_modal", async ({ ack, view, body, client }) => {
+  if (!isAllowedUser(config, body.user.id)) return ack({ response_action: "errors", errors: { titre: "Vous n'êtes pas autorisé à modifier le contexte." } })
+  const v = view.state.values
+  const item = {
+    type: v.type.v.selected_option?.value,
+    title: v.titre.v.value?.trim(),
+    body: v.contenu.v.value?.trim(),
+    why: v.pourquoi.v.value?.trim() ?? "",
+    formats: (v.formats.v.selected_options ?? []).map((o) => o.value),
+    origin: "Manuel",
+  }
+  if (!item.type || !item.title || !item.body) return ack({ response_action: "errors", errors: { contenu: "Type, titre et contenu sont obligatoires." } })
+  await ack()
+  try {
+    const url = await addToLibrary({ config, db }, item)
+    await client.chat.postMessage({ channel: view.private_metadata, text: `:books: <@${body.user.id}> a ajouté au contexte : *${item.title}* (${item.type}) · <${url}|voir dans Notion>` })
+  } catch (error) {
+    await postEphemeral(client, { channel: view.private_metadata, user: body.user.id }, `Impossible d'ajouter au contexte : ${error.message}`)
   }
 })
 
@@ -206,4 +276,5 @@ for (const worker of config.workers) {
 await app.start()
 startDispatcher({ config, db, client: app.client })
 startPlanner({ config, db, client: app.client })
+startLibrarySync({ config, db })
 console.log("Usine à contenu connectée à Slack.")

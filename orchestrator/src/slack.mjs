@@ -45,7 +45,7 @@ const MARKDOWN_LIMIT = 11_500
 
 // Pour un texte, le brouillon lui-même. Pour un visuel, l'image est envoyée
 // juste avant en fichier, et ce message porte sa description et les boutons.
-export function draftBlocks(request, { footer, buttons, visualButton = false, isImage = false, publishButton = false }) {
+export function draftBlocks(request, { footer, buttons, visualButton = false, isImage = false, publishButton = false, referenceButton = false }) {
   const draft = request.draft ?? ""
   const blocks = isImage
     ? [{ type: "section", text: { type: "mrkdwn", text: `*Visuel #${request.id}*${draft ? `\n_${draft.slice(0, 2800)}_` : ""}` } }]
@@ -60,14 +60,43 @@ export function draftBlocks(request, { footer, buttons, visualButton = false, is
     if (visualButton) elements.push({ type: "button", action_id: "visuel", text: { type: "plain_text", text: ":art: Ajouter un visuel", emoji: true }, value: String(request.id) })
     blocks.push({ type: "actions", elements })
   }
-  // Après validation : envoyer le contenu dans Notion.
-  if (publishButton) {
-    blocks.push({
-      type: "actions",
-      elements: [{ type: "button", action_id: "publier", style: "primary", text: { type: "plain_text", text: ":outbox_tray: Publier sur Notion", emoji: true }, value: String(request.id) }],
-    })
-  }
+  // Après validation : envoyer le contenu dans Notion, et / ou le garder comme
+  // référence dans le contexte de l'entreprise.
+  const after = []
+  if (publishButton) after.push({ type: "button", action_id: "publier", style: "primary", text: { type: "plain_text", text: ":outbox_tray: Publier sur Notion", emoji: true }, value: String(request.id) })
+  if (referenceButton) after.push({ type: "button", action_id: "reference", text: { type: "plain_text", text: ":star: Ajouter aux références", emoji: true }, value: String(request.id) })
+  if (after.length) blocks.push({ type: "actions", elements: after })
   return blocks
+}
+
+// La fenêtre /contenu contexte : ajouter un élément au contexte de l'entreprise.
+export function contextModal(types, formats, channelId) {
+  const option = (value, label = value) => ({ text: { type: "plain_text", text: label }, value })
+  const input = (block_id, label, element, optional = false, hint) => ({ type: "input", block_id, optional, label: { type: "plain_text", text: label }, element, ...(hint ? { hint: { type: "plain_text", text: hint } } : {}) })
+  const DESCRIPTIONS = {
+    "Référence": "Référence : un contenu qui a bien marché",
+    "Fait vérifié": "Fait vérifié : offre, chiffre, certification, client citable",
+    "Code de marque": "Code de marque : vocabulaire, accroches, CTA, hashtags",
+    "Cible": "Cible : un persona, ses problèmes, ses mots",
+    "Identité visuelle": "Identité visuelle : palette, style d'image",
+    "À éviter": "À éviter : sujets, mots, concurrents, erreurs",
+  }
+  return {
+    type: "modal",
+    callback_id: "contexte_modal",
+    private_metadata: channelId,
+    title: { type: "plain_text", text: "Contexte de l'entreprise" },
+    submit: { type: "plain_text", text: "Ajouter" },
+    close: { type: "plain_text", text: "Annuler" },
+    blocks: [
+      { type: "context", elements: [{ type: "mrkdwn", text: "Les workers s'appuient sur ce contexte pour chaque contenu : les codes et les interdits toujours, les faits, cibles et références quand ils sont proches du sujet." }] },
+      input("type", "Type", { type: "static_select", action_id: "v", options: types.map((t) => option(t, DESCRIPTIONS[t] ?? t)) }),
+      input("titre", "Titre", { type: "plain_text_input", action_id: "v", max_length: 200, placeholder: { type: "plain_text", text: "Ex. : Post LinkedIn sur la certification HDS" } }),
+      input("contenu", "Contenu", { type: "plain_text_input", action_id: "v", multiline: true, max_length: 3000, placeholder: { type: "plain_text", text: "Collez le post, le fait, la règle…" } }),
+      input("pourquoi", "Pourquoi ça marche (pour une référence)", { type: "plain_text_input", action_id: "v", multiline: true, max_length: 1000, placeholder: { type: "plain_text", text: "Ex. : accroche chiffrée, 12 000 vues, 40 commentaires" } }, true),
+      input("formats", "Formats concernés (vide = tous)", { type: "multi_static_select", action_id: "v", options: formats.map((f) => option(f)) }, true),
+    ],
+  }
 }
 
 export function correctionModal(request) {
@@ -110,4 +139,5 @@ export const HELP_TEXT = (config) =>
     "Tout d'un coup (article, post et visuel) : `/contenu pack Lancement de notre offre cloud souverain`",
     "Planifier un sujet dans Notion : `/contenu planifier 2026-10-05 blog Votre sujet`",
     "Modifier la charte éditoriale : `/contenu charte`",
+    "Contexte de l'entreprise : `/contenu contexte` (ajouter), `/contenu contexte liste`, `/contenu contexte sync`",
   ].join("\n")

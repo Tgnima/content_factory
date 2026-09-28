@@ -5,6 +5,7 @@ import { basename, join } from "node:path"
 import { busyWorkerIds, claimNextRequest, getRequest, updateRequest } from "./db.mjs"
 import { buildImagePrompt, buildPrompt } from "./prompt.mjs"
 import { houseContext } from "./charte.mjs"
+import { describeStats, selectContext } from "./library.mjs"
 import { checkAgainstCharte } from "./jev.mjs"
 import { STATUTS, syncStatus } from "./notion.mjs"
 import { onPackTextReady } from "./requests.mjs"
@@ -49,7 +50,8 @@ async function processImage({ config, db, client }, worker, request) {
   await postInThread(client, request, `:art: *${worker.id}* ${isRevision ? "reprend le visuel" : "crée le visuel"} (OpenAI)…`)
 
   try {
-    const run = await runOnWorker(config, worker, buildImagePrompt(config, request))
+    const selected = await selectContext({ config, db }, { type: request.type, brief: request.brief })
+    const run = await runOnWorker(config, worker, buildImagePrompt(config, request, { context: selected.text }))
     if (!run.image) throw new Error("Aucune image reçue.")
 
     const revisions = request.revisions + (isRevision ? 1 : 0)
@@ -68,7 +70,7 @@ async function processImage({ config, db, client }, worker, request) {
 
     updateRequest(db, request.id, { status: "review", draft: run.result, image_path: imagePath, revisions, error: null })
     const updated = getRequest(db, request.id)
-    const footer = `${worker.id}${run.model ? ` · ${run.model}` : ""}${revisions ? ` · révision ${revisions}` : ""}`
+    const footer = `${worker.id}${run.model ? ` · ${run.model}` : ""}${revisions ? ` · révision ${revisions}` : ""} · ${describeStats(selected.stats)}`
     const posted = await client.chat.postMessage({
       channel: request.channel_id,
       thread_ts: request.thread_ts,
@@ -103,7 +105,9 @@ async function processText({ config, db, client }, worker, request) {
     let problems = []
     let jevVerdict = null
     // Lu à chaque demande : une charte modifiée depuis Slack s'applique aussitôt.
-    const house = houseContext(config)
+    // Le contexte de l'entreprise choisi pour ce sujet et ce format.
+    const selected = await selectContext({ config, db }, { type: request.type, brief: request.brief })
+    const house = { charte: houseContext(config).charte, context: selected.text }
 
     // Un premier passage, puis maxAutoRetries passages si les contrôles
     // échouent : le même principe que "un test échoue, l'agent réessaie".
@@ -147,7 +151,7 @@ async function processText({ config, db, client }, worker, request) {
     const costText = totalCost > 0 ? ` · coût cumulé ${totalCost.toFixed(3)} $` : ""
     const tokenText = tokens > 0 ? ` · ${tokens.toLocaleString("fr-FR")} tokens` : ""
     const jevText = jevVerdict?.summary ? ` · ${jevVerdict.summary}` : ""
-    const footer = `${check.words} mots · ${worker.id}${model ? ` · ${model}` : ""}${revisions ? ` · révision ${revisions}` : ""}${tokenText}${costText}${jevText}${warnings}`
+    const footer = `${check.words} mots · ${worker.id}${model ? ` · ${model}` : ""}${revisions ? ` · révision ${revisions}` : ""}${tokenText}${costText} · ${describeStats(selected.stats)}${jevText}${warnings}`
     console.log(`Demande #${request.id} : ${tokens} tokens, ${check.words} mots`)
     const posted = await client.chat.postMessage({
       channel: request.channel_id,

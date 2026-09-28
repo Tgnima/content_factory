@@ -43,7 +43,8 @@ export function openDb(path) {
   //   pack_id    : la demande "pack" dont fait partie cet élément.
   //   notion_page_id : la ligne du planning Notion d'où vient la demande.
   //   notion_url : la page Notion où le contenu a été publié.
-  for (const [name, type] of [["status_ts", "TEXT"], ["image_path", "TEXT"], ["pack_id", "INTEGER"], ["notion_page_id", "TEXT"], ["notion_url", "TEXT"]]) {
+  //   library_url : la page du contexte si le contenu est devenu une référence.
+  for (const [name, type] of [["status_ts", "TEXT"], ["image_path", "TEXT"], ["pack_id", "INTEGER"], ["notion_page_id", "TEXT"], ["notion_url", "TEXT"], ["library_url", "TEXT"]]) {
     if (!columns.has(name)) db.exec(`ALTER TABLE requests ADD COLUMN ${name} ${type}`)
   }
   return db

@@ -134,5 +134,61 @@
   ],
   "maxAutoRetries": 1,
   "jobTimeoutMinutes": 10,
-  "slackBotName": "Content_Factory"
+  "slackBotName": "Content_Factory",
+  "notion": {
+    "planning": {
+      "database": "env:NOTION_DATABASE_ID",
+      "columns": {
+        "subject": "Sujet",
+        "format": "Format",
+        "date": "Date prévue",
+        "status": "Statut",
+        "slack": "Slack",
+        "publishedAt": "Publié le"
+      },
+      "formatValues": {
+        "blog": "blog",
+        "social": "social"
+      },
+      "statusValues": {
+        "todo": "À faire",
+        "running": "En cours",
+        "review": "À relire",
+        "published": "Publié",
+        "failed": "Échec"
+      }
+    }
+  },
+  "context": {
+    "embeddingModel": "openai/text-embedding-3-small",
+    "syncMinutes": 15,
+    "references": 4,
+    "facts": 8,
+    "targets": 1,
+    "budgetChars": 9000,
+    "minSimilarity": 0.3,
+    "relativeSimilarity": 0.7,
+    "sources": [
+      {
+        "name": "Bibliothèque de marque",
+        "kind": "notion",
+        "database": "env:NOTION_LIBRARY_ID",
+        "writable": true,
+        "columns": {
+          "title": "Titre",
+          "type": "Type",
+          "formats": "Formats",
+          "why": "Pourquoi ça marche",
+          "disabled": "Désactivé",
+          "origin": "Source"
+        }
+      },
+      {
+        "name": "Fichiers maison/exemples",
+        "kind": "folder",
+        "path": "exemples",
+        "type": "Référence"
+      }
+    ]
+  }
 }

@@ -96,6 +96,20 @@ Les journaux doivent afficher `redacteur-N (…) : prêt` pour chaque worker, pu
 - `/invite @<nom du bot>` dans le canal ;
 - `/contenu social <un sujet précis>`.
 
+## Brancher l'usine sur les bases existantes (plug and play)
+
+Si la personne a déjà un calendrier éditorial, des posts publiés, des fiches produits ou une charte dans Notion, **branche l'usine dessus** plutôt que de lui faire créer de nouvelles bases :
+
+1. Demande-lui de partager ces bases avec l'intégration Notion (••• > Connexions).
+2. Lance `node scripts/notion-connect.mjs --json`. Pour chaque base, tu obtiens ses colonnes et ses valeurs, et deux correspondances proposées : `asPlanning` et `asContext`.
+3. Présente les propositions simplement, par exemple : « votre colonne *Canal* servira de format, *LinkedIn* = post, *Blog* = article ; *En rédaction* = en cours ». Fais corriger ce qui ne va pas. Pour le contexte, vérifie avec elle :
+   - le **type** de chaque base : références, faits vérifiés, codes de marque, cibles, identité visuelle, à éviter ;
+   - le **filtre**, par exemple seulement les posts au statut « Publié ».
+4. Écris `{ "planning": {…}, "sources": [ … ] }` dans un fichier, puis lance `node scripts/notion-connect.mjs --apply fichier.json` et `docker compose restart orchestrateur`.
+5. Vérifie dans Slack avec `/contenu contexte liste`, puis `/contenu contexte sync`.
+
+Ne pas brancher de calendrier : l'usine garde son « Planning éditorial ». Ne pas brancher de contexte : sa « Bibliothèque de marque » et `maison/exemples/` suffisent pour commencer.
+
 ## Mettre à jour le code
 
 `bash update.sh` sur le serveur. Il ne touche ni à `.env`, ni à `config/factory.json`, ni à `maison/`. Il signale les nouvelles variables ajoutées vides dans `.env` : si l'une d'elles est nécessaire, explique à la personne où trouver la valeur.
