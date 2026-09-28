@@ -17,6 +17,7 @@ export const ACTION_LABELS = {
   update: "Mise à jour",
   "update-fin": "Fin de la mise à jour",
   "codex-login": "Connexion ChatGPT de l'illustrateur",
+  "codex-login-fin": "Connexion ChatGPT",
 }
 
 export function initActions(db) {
@@ -66,9 +67,11 @@ export function startActionWatcher({ config, db }, onDone) {
         continue // en cours d'écriture
       }
       db.prepare("UPDATE actions SET status = ?, message = ?, done = datetime('now') WHERE id = ?").run(result.ok ? "ok" : "failed", result.message ?? "", action.id)
-      // Une action en deux temps (la mise à jour) annonce son résultat final.
+      // Une action en deux temps (mise à jour, connexion ChatGPT) annonce son
+      // résultat final plus tard, sous un second identifiant.
       if (result.ok && result.followUp) {
-        db.prepare("INSERT OR IGNORE INTO actions (id, type, summary, by) VALUES (?, ?, ?, ?)").run(result.followUp, "update-fin", "Fin de la mise à jour", action.by)
+        const type = result.followUpType ?? "update-fin"
+        db.prepare("INSERT OR IGNORE INTO actions (id, type, summary, by) VALUES (?, ?, ?, ?)").run(result.followUp, type, ACTION_LABELS[type] ?? type, action.by)
       }
       await onDone({ ...action, ok: result.ok, message: result.message, extra: result }).catch((e) => console.error("Action (notification) :", e.message))
     }

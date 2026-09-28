@@ -105,13 +105,18 @@ const HANDLERS = {
   // La connexion ChatGPT de l'illustrateur : le lien et le code sont renvoyés
   // tout de suite pour être affichés dans Slack ; la connexion se termine quand
   // la personne a saisi le code.
-  async "codex-login"() {
+  // Le processus de connexion reste ouvert jusqu'à ce que la personne ait saisi
+  // le code (15 minutes au plus) ; sa fin donne le résultat final, <id>-fin.json.
+  async "codex-login"(_params, id) {
     const child = spawn("docker", ["compose", "exec", "-T", "illustrateur-1", "codex", "login", "--device-auth"], { cwd: PROJECT, env: { ...process.env, PWD: PROJECT } })
     let out = ""
+    // Codex affiche le lien et le code en couleur : les codes de couleur
+    // (invisibles) collés au code empêcheraient de le reconnaître.
+    const plain = () => out.replace(/\x1b\[[0-9;]*[A-Za-z]/g, "")
     const found = await new Promise((resolve) => {
       const done = () => {
-        const url = /(https:\/\/\S+)/.exec(out)?.[1]
-        const code = /\b([A-Z0-9]{4,5}-[A-Z0-9]{4,5})\b/.exec(out)?.[1]
+        const url = /(https:\/\/[^\s]+)/.exec(plain())?.[1]
+        const code = /(?:^|\s)([A-Z0-9]{4,5}-[A-Z0-9]{4,5})(?:\s|$)/m.exec(plain())?.[1]
         if (url && code) resolve({ url, code })
       }
       child.stdout.on("data", (d) => ((out += d), done()))
@@ -119,8 +124,18 @@ const HANDLERS = {
       child.on("close", () => resolve(null))
       setTimeout(() => resolve(null), 60_000)
     })
-    if (!found) throw Object.assign(new Error("Codex n'a pas donné de code de connexion"), { log: out.slice(-2000) })
-    return { message: `Ouvrez ${found.url} et saisissez le code ${found.code} (valable quelques minutes).`, url: found.url, code: found.code }
+    if (!found) {
+      child.kill()
+      throw Object.assign(new Error("Codex n'a pas donné de code de connexion"), { log: plain().slice(-2000) })
+    }
+    child.on("close", async () => {
+      // On demande à Codex lui-même s'il est connecté, plutôt que de deviner
+      // d'après ce qu'il a affiché.
+      const status = await compose("exec", "-T", "illustrateur-1", "codex", "login", "status")
+      const ok = /logged in/i.test(status.log) && !/not logged in/i.test(status.log)
+      writeFileSync(join(RESULTS, `${id}-fin.json`), JSON.stringify({ id: `${id}-fin`, type: "codex-login-fin", ok, message: ok ? "l'illustrateur est connecté à ChatGPT." : "la connexion n'a pas abouti (code expiré ou refusé). Relancez « Connecter ChatGPT »." }))
+    })
+    return { message: `Ouvrez ${found.url} et saisissez le code ${found.code} (valable 15 minutes).`, url: found.url, code: found.code, followUp: `${id}-fin`, followUpType: "codex-login-fin" }
   },
 }
 
