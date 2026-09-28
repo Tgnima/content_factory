@@ -41,6 +41,29 @@ Pour chaque clé nécessaire, il indique où la trouver, la demande sans l'affic
 
 Ouvrez le projet dans Claude Code et demandez-lui de « configurer l'usine ». Le skill `configurer-usine` lui fait poser les mêmes questions, une par une. Vous collez vos clés vous-même dans `.env`, et elles ne passent jamais par la conversation. L'agent lance ensuite `bash install.sh --answers setup.answers.json --yes`. Voir `CLAUDE.md` et `AGENTS.md`.
 
+### Après l'installation : tout se règle depuis Slack et Notion
+
+Une fois le serveur installé, plus besoin de SSH ni de fichiers. Les **administrateurs** (`ADMIN_USER_IDS`, puis modifiables depuis Slack) règlent l'usine dans l'**onglet Accueil de l'app Slack** :
+
+| Bouton | Effet | Délai |
+|---|---|---|
+| :brain: Modèles | Moteur de chaque worker, ajout d'un modèle de Vercel AI Gateway (vérifié) | Immédiat |
+| :busts_in_silhouette: Accès | Personnes autorisées, administrateurs, canaux, canal du planning | Immédiat |
+| :link: Brancher Notion | Choix du calendrier et des sources de contexte, avec les correspondances proposées puis vérifiées | Immédiat |
+| :arrows_counterclockwise: Synchroniser | Relit tout de suite le contexte et les réglages éditoriaux | Immédiat |
+| :key: Clés d'API | Changer ou effacer une clé (Claude, Vercel, OpenAI, Mistral, Notion…) | Quelques secondes |
+| :construction_worker: Workers | Nombre de rédacteurs, avec ou sans illustrateur | 1 à 3 minutes |
+| :art: Connecter ChatGPT | Le lien et le code de connexion arrivent en message privé | Immédiat |
+| :arrow_up: Mettre à jour | Récupère la dernière version depuis GitHub et reconstruit | Quelques minutes |
+
+Les **réglages éditoriaux** se font dans Notion, dans deux bases créées et pré-remplies à l'installation :
+- **« Réglages : formats »** : une ligne par format (libellé, mots min et max, consignes). Pour ajouter une newsletter, il suffit d'ajouter une ligne.
+- **« Réglages : règles »** : termes interdits, tentatives automatiques, JEV et ses seuils, composition du pack, fréquence du planning…
+
+L'usine les relit toutes les 5 minutes. Une valeur invalide est ignorée, l'ancienne est conservée, et l'erreur s'affiche dans le panneau Slack.
+
+**Comment c'est fait.** Les réglages immédiats sont enregistrés par l'orchestrateur (`data/overrides.json`). Ceux qui demandent Docker (clés, workers, mise à jour) sont confiés au **superviseur**. C'est le seul conteneur qui accède à Docker : il n'ouvre aucun port, ne parle ni à Slack ni à Notion, et n'exécute qu'une liste fermée d'actions déposées dans `actions/`. Les tokens Slack ne se changent pas depuis Slack, car une erreur couperait l'accès au panneau.
+
 ### Mettre à jour
 
 ```bash

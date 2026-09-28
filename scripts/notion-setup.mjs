@@ -11,6 +11,7 @@
 // Prérequis : NOTION_TOKEN dans .env, et une page Notion (par exemple
 // "Usine à contenu") connectée à l'intégration (••• > Connexions).
 import { readFileSync, writeFileSync } from "node:fs"
+import { RULES } from "../orchestrator/src/editorial.mjs"
 
 const ENV_FILE = new URL("../.env", import.meta.url)
 const VERSION = "2026-03-11"
@@ -33,6 +34,34 @@ const DATABASES = [
       "Slack": { url: {} },
       "Publié le": { date: {} },
     },
+  },
+  {
+    envKey: "NOTION_FORMATS_ID",
+    title: "Réglages : formats",
+    properties: {
+      "Format": { title: {} },
+      "Libellé": { rich_text: {} },
+      "Mots min": { number: {} },
+      "Mots max": { number: {} },
+      "Consignes": { rich_text: {} },
+      "Désactivé": { checkbox: {} },
+    },
+    // Pré-rempli avec les formats de texte actuels.
+    seed: (config) =>
+      Object.entries(config.contentTypes)
+        .filter(([, t]) => t.kind !== "image")
+        .map(([key, t]) => ({ "Format": key, "Libellé": t.label, "Mots min": t.minWords, "Mots max": t.maxWords, "Consignes": t.instructions })),
+  },
+  {
+    envKey: "NOTION_RULES_ID",
+    title: "Réglages : règles",
+    properties: {
+      "Réglage": { title: {} },
+      "Valeur": { rich_text: {} },
+      "Aide": { rich_text: {} },
+    },
+    // Une ligne par règle, avec la valeur actuelle et une explication.
+    seed: (config) => Object.entries(RULES).map(([name, rule]) => ({ "Réglage": name, "Valeur": String(rule.current(config) ?? ""), "Aide": rule.help })),
   },
   {
     envKey: "NOTION_LIBRARY_ID",
@@ -61,7 +90,7 @@ const configFile = [new URL("../config/factory.json", import.meta.url), new URL(
 })
 const config = JSON.parse(readFileSync(configFile, "utf8"))
 const referenced = new Set(
-  [config.notion?.planning?.database ?? "env:NOTION_DATABASE_ID", ...(config.context?.sources ?? []).filter((s) => s.kind === "notion").map((s) => s.database)]
+  [config.notion?.planning?.database ?? "env:NOTION_DATABASE_ID", config.editorial?.formats, config.editorial?.rules, ...(config.context?.sources ?? []).filter((s) => s.kind === "notion").map((s) => s.database)]
     .filter((v) => typeof v === "string" && v.startsWith("env:"))
     .map((v) => v.slice(4)),
 )
@@ -110,6 +139,21 @@ for (const d of todo) {
   } catch (error) {
     if (error.status !== 400) throw error
     db = await notion("/databases", { method: "POST", body: { parent, title, properties: d.properties } })
+  }
+  if (d.seed) {
+    const source = db.data_sources?.[0]?.id ?? (await notion(`/databases/${db.id}`)).data_sources[0].id
+    const cell = (name, value) => {
+      const type = d.properties[name] && Object.keys(d.properties[name])[0]
+      if (type === "title") return { title: [{ text: { content: String(value).slice(0, 2000) } }] }
+      if (type === "rich_text") return { rich_text: [{ text: { content: String(value ?? "").slice(0, 2000) } }] }
+      if (type === "number") return { number: Number(value) }
+      return { checkbox: Boolean(value) }
+    }
+    const rows = d.seed(config)
+    for (const row of rows) {
+      await notion("/pages", { method: "POST", body: { parent: { type: "data_source_id", data_source_id: source }, properties: Object.fromEntries(Object.entries(row).map(([k, v]) => [k, cell(k, v)])) } })
+    }
+    console.log(`  pré-remplie avec ${rows.length} ligne(s) d'après la configuration actuelle`)
   }
   const line = `${d.envKey}=${db.id}`
   envText = new RegExp(`^${d.envKey}=.*$`, "m").test(envText) ? envText.replace(new RegExp(`^${d.envKey}=.*$`, "m"), line) : `${envText.trimEnd()}\n${line}\n`

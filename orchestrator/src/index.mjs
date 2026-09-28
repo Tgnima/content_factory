@@ -5,6 +5,10 @@ import bolt from "@slack/bolt"
 import { isAllowedChannel, isAllowedUser, loadConfig } from "./config.mjs"
 import { getRequest, openDb, requeueInterrupted, updateRequest } from "./db.mjs"
 import { startDispatcher } from "./dispatcher.mjs"
+import { applyOverrides } from "./settings.mjs"
+import { initActions } from "./actions.mjs"
+import { registerAdmin } from "./admin.mjs"
+import { startEditorialSync } from "./editorial.mjs"
 import { queueVisualFor, startPack, submitRequest } from "./requests.mjs"
 import { addPlanningItem, notionEnabled, publish as publishToNotion } from "./notion.mjs"
 import { startPlanner } from "./planner.mjs"
@@ -16,8 +20,12 @@ import { HELP_TEXT, contextModal, correctionModal, draftBlocks, postEphemeral, p
 const { App, LogLevel } = bolt
 
 const config = loadConfig()
+// Les réglages changés depuis le panneau Slack passent devant ceux de l'installation.
+applyOverrides(config)
+config.actionsDir = process.env.ACTIONS_DIR ?? "/app/actions"
 const db = openDb(join(config.dataDir, "usine.db"))
 initLibrary(db)
+initActions(db)
 const canAddReference = () => Boolean(config.notionToken && writableSource(config))
 const isImageType = (type) => config.contentTypes[type]?.kind === "image"
 const app = new App({ token: config.slackBotToken, appToken: config.slackAppToken, socketMode: true, logLevel: LogLevel.INFO })
@@ -274,7 +282,10 @@ for (const worker of config.workers) {
 }
 
 await app.start()
+registerAdmin(app, { config, db })
 startDispatcher({ config, db, client: app.client })
 startPlanner({ config, db, client: app.client })
 startLibrarySync({ config, db })
+startEditorialSync({ config, db })
+if (!(config.adminUsers ?? []).length) console.warn("Aucun administrateur (ADMIN_USER_IDS vide) : le panneau de réglages Slack est inaccessible.")
 console.log("Usine à contenu connectée à Slack.")

@@ -13,7 +13,7 @@
 //
 // Sans Node sur le serveur, install.sh le lance dans un conteneur.
 import { createInterface } from "node:readline"
-import { existsSync, readFileSync, writeFileSync, copyFileSync, chmodSync, cpSync } from "node:fs"
+import { existsSync, readFileSync, writeFileSync, copyFileSync, chmodSync, cpSync, mkdirSync } from "node:fs"
 import { randomBytes } from "node:crypto"
 import { spawnSync } from "node:child_process"
 import { fileURLToPath } from "node:url"
@@ -68,6 +68,7 @@ const SECRETS = {
 const QUESTIONS = [
   { id: "botName", question: "Nom affiché du bot Slack (celui choisi dans l'app Slack)", default: "Content_Factory" },
   { id: "channelId", question: "Identifiant du canal Slack de l'usine (clic droit sur le canal > Copier le lien : la fin du lien, C…). Vide = tous les canaux", default: "" },
+  { id: "adminUserIds", question: "Votre identifiant Slack, pour être administrateur (profil Slack > ⋮ > Copier l'ID de membre, U…). Plusieurs : séparés par des virgules. Les administrateurs règlent l'usine depuis l'onglet Accueil de l'app", default: "" },
   { id: "allowedUserIds", question: "Identifiants Slack des personnes autorisées, séparés par des virgules. Vide = tout l'espace de travail", default: "" },
   { id: "writers", question: "Nombre de rédacteurs (travaillent en parallèle)", default: 2, type: "number" },
   { id: "writerEngines", question: "Moteur de chaque rédacteur (un par rédacteur ; s'il y en a moins, le dernier est répété)", choices: TEXT_ENGINES, default: ["claude"], type: "list" },
@@ -257,20 +258,48 @@ services:
       WORKER_TOKEN: \${WORKER_TOKEN}
       ALLOWED_USER_IDS: \${ALLOWED_USER_IDS:-}
       ALLOWED_CHANNEL_IDS: \${ALLOWED_CHANNEL_IDS:-}
+      # Les administrateurs changent les réglages depuis l'onglet Accueil de l'app Slack.
+      ADMIN_USER_IDS: \${ADMIN_USER_IDS:-}
       # JEV, le contrôleur bon marché (facultatif).
       AI_GATEWAY_API_KEY: \${AI_GATEWAY_API_KEY:-}
       # Notion : planning éditorial et publication (facultatif).
       NOTION_TOKEN: \${NOTION_TOKEN:-}
       NOTION_DATABASE_ID: \${NOTION_DATABASE_ID:-}
       NOTION_LIBRARY_ID: \${NOTION_LIBRARY_ID:-}
+      NOTION_FORMATS_ID: \${NOTION_FORMATS_ID:-}
+      NOTION_RULES_ID: \${NOTION_RULES_ID:-}
       PLANNING_CHANNEL_ID: \${PLANNING_CHANNEL_ID:-}
     volumes:
       - ./config:/app/config:ro
       - orchestrateur-data:/app/data
       # En écriture pour /contenu charte. Les workers, eux, le lisent seulement.
       - ./maison:/app/maison
+      # Les actions confiées au superviseur, et leurs résultats.
+      - ./actions:/app/actions
     depends_on:
 ${deps.map((d) => `      - ${d}`).join("\n")}
+    mem_limit: 256m
+    cpus: 0.5
+    logging: *logging
+
+  # Le superviseur : le seul conteneur qui accède à Docker. Il exécute une liste
+  # fermée d'actions déposées par l'orchestrateur dans actions/ (changer une clé,
+  # le nombre de workers, redémarrer, mettre à jour). Aucun port, pas de Slack.
+  # Il voit le projet au même chemin que le serveur, pour que docker compose
+  # fonctionne depuis l'intérieur : lancez toujours compose depuis ce dossier.
+  superviseur:
+    build: ./superviseur
+    restart: unless-stopped
+    user: "\${HOST_UID:-1000}:\${HOST_GID:-1000}"
+    group_add:
+      - "\${DOCKER_GID:-999}"
+    environment:
+      PROJECT_DIR: \${PWD}
+      HOME: /tmp
+    working_dir: \${PWD}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - .:\${PWD}
     mem_limit: 256m
     cpus: 0.5
     logging: *logging
@@ -471,6 +500,7 @@ async function main() {
     WORKER_TOKEN: env.WORKER_TOKEN || randomBytes(32).toString("hex"),
     ALLOWED_CHANNEL_IDS: answers.channelId,
     ALLOWED_USER_IDS: answers.allowedUserIds,
+    ...(answers.adminUserIds ? { ADMIN_USER_IDS: answers.adminUserIds } : {}),
     ...(answers.writerEngines.includes("claude") ? { CLAUDE_MODEL: answers.claudeModel } : {}),
   })
   writeFactoryConfig(answers)
@@ -517,6 +547,8 @@ function ensureLocalFiles() {
     cpSync(path("maison.example/"), path("maison/"), { recursive: true })
     console.log("maison/ créé à partir de maison.example/ : adaptez-y votre charte, ou utilisez /contenu charte dans Slack.")
   }
+  // Le dossier d'échange avec le superviseur.
+  mkdirSync(path("actions/results/"), { recursive: true })
   if (!existsSync(path("config/factory.json"))) {
     copyFileSync(path("config/factory.example.json"), path("config/factory.json"))
     console.log("config/factory.json créé à partir de config/factory.example.json.")

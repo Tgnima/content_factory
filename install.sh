@@ -82,6 +82,17 @@ elif [ "$code" -ne 0 ]; then
   exit "$code"
 fi
 
+# L'utilisateur du serveur et le groupe Docker : le superviseur tourne avec eux
+# (pas en root), et les fichiers qu'il écrit restent à vous.
+set_env() { if grep -q "^$1=" .env; then sed -i "s|^$1=.*|$1=$2|" .env; else printf "%s=%s\n" "$1" "$2" >> .env; fi; }
+host_ids() {
+  set_env HOST_UID "$(id -u)"
+  set_env HOST_GID "$(id -g)"
+  set_env DOCKER_GID "$(stat -c %g /var/run/docker.sock 2>/dev/null || echo 999)"
+  mkdir -p actions/results
+}
+host_ids
+
 # --- 4. Construction -------------------------------------------------------------
 say "Construction des images (quelques minutes la première fois)"
 $COMPOSE build

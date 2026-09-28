@@ -45,6 +45,8 @@ export function loadConfig() {
     slackAppToken: process.env.SLACK_APP_TOKEN,
     workerToken: process.env.WORKER_TOKEN,
     allowedUsers: list(process.env.ALLOWED_USER_IDS),
+    // Les administrateurs changent les réglages depuis le panneau Slack.
+    adminUsers: list(process.env.ADMIN_USER_IDS),
     allowedChannels: list(process.env.ALLOWED_CHANNEL_IDS),
     dataDir: process.env.DATA_DIR ?? "/app/data",
     maisonDir: process.env.MAISON_DIR ?? "/app/maison",
@@ -57,5 +59,6 @@ export function loadConfig() {
   }
 }
 
-export const isAllowedUser = (config, userId) => config.allowedUsers.length === 0 || config.allowedUsers.includes(userId)
+// Un administrateur est toujours autorisé à utiliser l'usine.
+export const isAllowedUser = (config, userId) => config.allowedUsers.length === 0 || config.allowedUsers.includes(userId) || (config.adminUsers ?? []).includes(userId)
 export const isAllowedChannel = (config, channelId) => config.allowedChannels.length === 0 || config.allowedChannels.includes(channelId)

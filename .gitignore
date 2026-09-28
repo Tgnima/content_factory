@@ -8,3 +8,4 @@ maison/
 config/factory.json
 docker-compose.yml
 *.log
+actions/

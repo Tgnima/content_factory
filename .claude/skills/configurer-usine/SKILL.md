@@ -110,6 +110,14 @@ Si la personne a déjà un calendrier éditorial, des posts publiés, des fiches
 
 Ne pas brancher de calendrier : l'usine garde son « Planning éditorial ». Ne pas brancher de contexte : sa « Bibliothèque de marque » et `maison/exemples/` suffisent pour commencer.
 
+## Après l'installation
+
+Rappelle à la personne qu'**elle n'a plus besoin du serveur**. Tout se règle depuis :
+- **l'onglet Accueil** de l'app Slack, si elle est administratrice : modèles, accès, branchement Notion, clés, workers, connexion ChatGPT, mise à jour ;
+- **les bases Notion « Réglages : formats » et « Réglages : règles »** : formats, longueurs, consignes, termes interdits, JEV, pack, fréquence du planning.
+
+Vérifie qu'au moins un administrateur est déclaré (`ADMIN_USER_IDS`). Sinon, le panneau reste inaccessible.
+
 ## Mettre à jour le code
 
 `bash update.sh` sur le serveur. Il ne touche ni à `.env`, ni à `config/factory.json`, ni à `maison/`. Il signale les nouvelles variables ajoutées vides dans `.env` : si l'une d'elles est nécessaire, explique à la personne où trouver la valeur.

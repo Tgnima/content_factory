@@ -1,4 +1,6 @@
 # À coller dans https://api.slack.com/apps > Create New App > From a manifest.
+# App déjà créée : votre app > App Manifest > remplacez le contenu > Save, puis
+# réinstallez l'app si Slack le demande (Install App > Reinstall).
 display_information:
   name: Usine à contenu
   description: Rédige articles et posts à la demande, avec relecture dans le fil.
@@ -7,10 +9,15 @@ features:
   bot_user:
     display_name: Content_Factory
     always_online: true
+  # L'onglet Accueil : état de l'usine et panneau d'administration.
+  app_home:
+    home_tab_enabled: true
+    messages_tab_enabled: true
+    messages_tab_read_only_enabled: true
   slash_commands:
     - command: /contenu
       description: Demander un contenu (article, post LinkedIn…)
-      usage_hint: "[blog|social] votre demande"
+      usage_hint: "[blog|social|visuel|pack] votre demande"
       should_escape: false
 oauth_config:
   scopes:
@@ -20,7 +27,12 @@ oauth_config:
       - chat:write.public
       - reactions:write
       - files:write
+      # Messages privés aux administrateurs (résultats des réglages).
+      - im:write
 settings:
+  event_subscriptions:
+    bot_events:
+      - app_home_opened
   interactivity:
     is_enabled: true
   org_deploy_enabled: false

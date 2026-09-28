@@ -190,5 +190,10 @@
         "type": "Référence"
       }
     ]
+  },
+  "editorial": {
+    "formats": "env:NOTION_FORMATS_ID",
+    "rules": "env:NOTION_RULES_ID",
+    "syncMinutes": 5
   }
 }

@@ -21,6 +21,12 @@ Utilise le skill `configurer-usine` (`.claude/skills/configurer-usine/SKILL.md`)
 | `docker-compose.yml` | Généré par `setup.mjs` selon les workers. Non suivi par Git | Ne pas modifier à la main : relancer l'assistant |
 | `maison/` | Charte éditoriale et exemples. Non suivi par Git, créé une fois depuis `maison.example/` | La personne, ou `/contenu charte` dans Slack. Ne jamais l'écraser |
 
+**Après l'installation, tout se règle sans le serveur.** Il y a deux surfaces :
+- **le panneau Slack**, dans l'onglet Accueil, réservé aux administrateurs (`orchestrator/src/admin.mjs`), pour les modèles, les accès, le branchement Notion, les clés, les workers et la mise à jour ;
+- **les bases Notion « Réglages : formats » et « Réglages : règles »** (`editorial.mjs`), pour l'éditorial.
+
+Les réglages immédiats vont dans `data/overrides.json` (`settings.mjs`). Ceux qui demandent Docker passent par le **superviseur** (`superviseur/server.mjs`), qui exécute une liste fermée d'actions. N'ajoute jamais l'accès à Docker à l'orchestrateur. Une nouvelle action se déclare à la fois dans `superviseur/server.mjs` (HANDLERS) et dans `orchestrator/src/actions.mjs`. Une nouvelle règle éditoriale s'ajoute dans `RULES` (`editorial.mjs`), et `notion-setup.mjs` la pré-remplira.
+
 **Plug and play** : l'usine se branche sur les bases Notion existantes de l'entreprise, au lieu d'imposer les siennes. `node scripts/notion-connect.mjs --json` décrit les bases visibles et propose les correspondances. Montre-les à la personne, ajuste avec elle, puis écris-les avec `--apply`. Le contexte de l'entreprise (références, faits vérifiés, codes, cibles, identité visuelle, interdits) est lu depuis `context.sources`, et le code ne suppose aucun nom de colonne (`orchestrator/src/notionClient.mjs`).
 
 **Mettre à jour une installation** : `bash update.sh` (git pull, puis `setup.mjs --upgrade` qui ajoute les nouveaux réglages sans rien écraser, puis reconstruction). Un nouveau réglage du code s'ajoute dans `config/factory.example.json` : `--upgrade` le reportera chez chacun.

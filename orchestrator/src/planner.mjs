@@ -12,22 +12,20 @@ export function startPlanner(ctx) {
   if (!notionEnabled(config)) return console.log("Planning Notion désactivé (NOTION_TOKEN ou NOTION_DATABASE_ID manquant).")
   if (!config.planningChannelId) return console.log("Planning Notion désactivé : aucun canal (PLANNING_CHANNEL_ID ou ALLOWED_CHANNEL_IDS).")
 
-  const minutes = config.planning?.pollMinutes ?? 5
-  let running = false
+  // La fréquence est relue à chaque passage : elle peut changer dans les
+  // réglages Notion sans redémarrage. Un passage lent ne se superpose jamais
+  // au suivant, puisque le suivant n'est programmé qu'à la fin.
   const tick = async () => {
-    if (running) return // un passage lent ne se superpose pas au suivant
-    running = true
     try {
-      for (const item of await dueItems(config)) await launch(ctx, item)
+      if (notionEnabled(config)) for (const item of await dueItems(config)) await launch(ctx, item)
     } catch (error) {
       console.error("Planning Notion :", error.message)
     } finally {
-      running = false
+      setTimeout(tick, (config.planning?.pollMinutes ?? 5) * 60_000)
     }
   }
   setTimeout(tick, 10_000)
-  setInterval(tick, minutes * 60_000)
-  console.log(`Planning Notion actif : vérification toutes les ${minutes} min, canal ${config.planningChannelId}.`)
+  console.log(`Planning Notion actif : vérification toutes les ${config.planning?.pollMinutes ?? 5} min, canal ${config.planningChannelId}.`)
 }
 
 async function launch({ config, db, client }, item) {
